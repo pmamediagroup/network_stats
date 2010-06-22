@@ -18,7 +18,6 @@ SendData::connect_to_server(struct in_addr* host_addr, int port){
   if(main_socket < 0)
     throw(runtime_error("socket creation error"));
   
-  serv_addr.sin_len = sizeof(serv_addr);
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_addr = *host_addr;
   serv_addr.sin_port = htons(port);

@@ -11,11 +11,13 @@ static void usage()
             "exist.\n\n"
             "Options:\n"
             "      -d=           - The device to look for\n"
+            "      -h=           - The host to push the data to\n"
             "      -?            - Show this help.\n\n"
          << XERCES_STD_QUALIFIER endl;
 }
 
 const char* device;
+const char* beanstalk_addr;
 char* interfaceTag = "interface";
 char* trafficTag = "traffic";
 char* daysTag = "days";
@@ -149,6 +151,10 @@ int main(int argc, char* argv[]){
     if(!strncmp(argv[parmInd], "-d=", 3)){
       device = &argv[parmInd][3];
     }
+    
+    if(!strncmp(argv[parmInd], "-h=", 3)){
+      beanstalk_addr = &argv[parmInd][3];
+    }
       
     if(!strcmp(argv[parmInd], "-?")){
       XERCES_STD_QUALIFIER cout << "Printing Help" << XERCES_STD_QUALIFIER endl;
@@ -173,7 +179,7 @@ int main(int argc, char* argv[]){
   }
   xmlFile = argv[parmInd];
   rx_tx = p.parseFile(xmlFile);
-  in_addr* addr_info = send_data.get_ip_addr("localhost");
+  in_addr* addr_info = send_data.get_ip_addr(strdup(beanstalk_addr));
   send_data.connect_to_server(addr_info, 11300);
   send_data.select_tube("pingstatus");
   
