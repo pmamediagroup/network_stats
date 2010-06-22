@@ -38,6 +38,7 @@ SendData::get_ip_addr(char* hostname){
   }
   
   in_addr* addressptr = (in_addr*) record->h_addr;
+  return addressptr;
 }
 
 void
@@ -47,7 +48,7 @@ SendData::select_tube(char* tube_name){
   send_to_server(get);
   
   char* response = get_response();
-  cout << "select_tube resp = " << response << endl;
+  cout << response << endl;
 }
 
 void

@@ -84,7 +84,6 @@ char** ParseTree::parseFile(string fileToParse) throw(runtime_error){
       DOMNodeList* theMap = dayNode->getChildNodes();
       DOMNode* rxNode = theMap->item(1);
       DOMNode* txNode = theMap->item(2);
-      cout << "test" << endl;
       rx_tx[0] = XMLString::transcode(rxNode->getTextContent());
       rx_tx[1] = XMLString::transcode(txNode->getTextContent());
     } else {

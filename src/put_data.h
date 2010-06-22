@@ -6,6 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <cstring>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
