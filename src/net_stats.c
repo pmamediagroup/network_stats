@@ -37,8 +37,11 @@ ParseTree::~ParseTree(){
   
 }
 
-void ParseTree::parseFile(string fileToParse) throw(runtime_error){
+char** ParseTree::parseFile(string fileToParse) throw(runtime_error){
   struct stat fileStatus;
+  char** rx_tx;
+  
+  rx_tx = (char**) malloc(1024);
   
   int iretStat = stat(fileToParse.c_str(), &fileStatus);
   if(iretStat == ENOENT)
@@ -77,22 +80,13 @@ void ParseTree::parseFile(string fileToParse) throw(runtime_error){
     }
     DOMNodeList* dayElements = xmlDoc->getElementsByTagName(XMLString::transcode(dayTag));
     if(!(dayElements == NULL)){
-      // const XMLSize_t count = dayElements->getLength();
-      // cout << "found " << count << " elements" << endl;
       DOMNode* dayNode = dayElements->item(2);
       DOMNodeList* theMap = dayNode->getChildNodes();
-      // const XMLSize_t mapCount = theMap->getLength();
-      // cout << "map count is " << mapCount << endl;
-      // DOMNode* mapNode = theMap->item(0);
-      // DOMNamedNodeMap* mapAttrs = mapNode->getAttributes();
       DOMNode* rxNode = theMap->item(1);
       DOMNode* txNode = theMap->item(2);
-      cout << "value of rx is " << 
-        XMLString::transcode(rxNode->getTextContent())
-        << endl;
-      cout << "value of tx is " << 
-        XMLString::transcode(txNode->getTextContent())
-        << endl;
+      cout << "test" << endl;
+      rx_tx[0] = XMLString::transcode(rxNode->getTextContent());
+      rx_tx[1] = XMLString::transcode(txNode->getTextContent());
     } else {
       cout << "fonud 0 elements" << endl;
     }
@@ -104,11 +98,8 @@ void ParseTree::parseFile(string fileToParse) throw(runtime_error){
   }
   
   XMLPlatformUtils::Terminate();
+  return rx_tx;
 }
-
-// DOMElement* ParseTree::findElementWithId(DOMElement* currentElement, const char* lostTag, const char* withId){
-//   
-// }
 
 DOMElement* ParseTree::findElement(DOMElement* currentElement, const char* lostTag){
   XMLCh* tagSearchFor = XMLString::transcode(lostTag);
@@ -138,6 +129,12 @@ bool ParseTree::hasChildren(DOMElement* elem){
 int main(int argc, char* argv[]){
   
   ParseTree p;
+  SendData send_data;
+  JSONNode* root;
+  JSONNode* name; 
+  JSONNode* value;
+  char* jsoned;
+  char** rx_tx;
   
   if(argc < 2){
     usage();
@@ -176,7 +173,17 @@ int main(int argc, char* argv[]){
     return 1;
   }
   xmlFile = argv[parmInd];
-  p.parseFile(xmlFile);
+  rx_tx = p.parseFile(xmlFile);
+  in_addr* addr_info = send_data.get_ip_addr("localhost");
+  send_data.connect_to_server(addr_info, 11300);
+  send_data.select_tube("pingstatus");
+  
+  root = libJSON::NewNode("", "{}");
+  name = root->AddNewStringChild("rx", rx_tx[0]);
+  value = root->AddNewChild("tx", rx_tx[1]);
+  jsoned = strdup((root->Write()).c_str());
+  send_data.put_data(jsoned);
+  
   
   return 0;
 }

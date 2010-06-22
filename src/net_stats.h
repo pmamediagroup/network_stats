@@ -1,34 +1,31 @@
 #ifndef NET_STATS_H
-  #include <iostream>
-  #include <string>
-  #include <stdexcept>
-  
-  #include <sys/types.h>
-  #include <sys/stat.h>
-  #include <errno.h>
-#endif
+#define NET_STATS_H
+#include <iostream>
+#include <string>
+#include <stdexcept>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <xercesc/sax/HandlerBase.hpp>
 #include <xercesc/util/PlatformUtils.hpp>
 #include <xercesc/parsers/XercesDOMParser.hpp>
 #include <xercesc/dom/DOM.hpp>
+#include "json/JSON_Defs.h"   //for the libJSON namespace
+#include "json/jsonmain.h"    //for JSONNode
+#include "put_data.h"
 
 XERCES_CPP_NAMESPACE_USE
 
 XMLCh* deviceTag;
 XercesDOMParser* parser;
-// ---------------------------------------------------------------------------
-//  This is a simple class that lets us do easy (though not terribly efficient)
-//  trancoding of XMLCh data to local code page for display.
-// ---------------------------------------------------------------------------
+
 class StrX
 {
 public :
-    // -----------------------------------------------------------------------
-    //  Constructors and Destructor
-    // -----------------------------------------------------------------------
+
     StrX(const XMLCh* const toTranscode)
     {
-        // Call the private transcoding method
         fLocalForm = XMLString::transcode(toTranscode);
     }
 
@@ -37,10 +34,6 @@ public :
         XMLString::release(&fLocalForm);
     }
 
-
-    // -----------------------------------------------------------------------
-    //  Getter methods
-    // -----------------------------------------------------------------------
     const char* localForm() const
     {
         return fLocalForm;
@@ -48,12 +41,6 @@ public :
 
 
 private :
-    // -----------------------------------------------------------------------
-    //  Private data members
-    //
-    //  fLocalForm
-    //      This is the local code page form of the string.
-    // -----------------------------------------------------------------------
     char*   fLocalForm;
 };
 
@@ -69,8 +56,12 @@ class ParseTree{
 public:
   ParseTree();
   ~ParseTree();
-  void parseFile(std::string xmlFile) throw(std::runtime_error);
+  char** parseFile(std::string xmlFile) throw(std::runtime_error);
 private:
   DOMElement* findElement(DOMElement* currentElement, const char* lostTag);
   bool hasChildren(DOMElement* elem);
 };
+
+
+
+#endif
