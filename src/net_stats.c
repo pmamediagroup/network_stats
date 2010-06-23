@@ -1,34 +1,31 @@
 #include "net_stats.h"
+#include "file_drudge.h"
 
 using namespace std;
 
 static void usage()
 {
     XERCES_STD_QUALIFIER cout << "\nUsage:\n"
-            "    netstats [Options] <XML file>\n\n"
+            "    netstats <XML config file>\n\n"
             "This program grabs the Rx and Tx of the network as printed by\n"
             "the xml output of the vnstat program. The xml file must already\n"
             "exist.\n\n"
             "Options:\n"
-            "      -d=           - The device to look for\n"
-            "      -h=           - The host to push the data to\n"
             "      -?            - Show this help.\n\n"
          << XERCES_STD_QUALIFIER endl;
 }
 
-const char* device;
-const char* beanstalk_addr;
-char* interfaceTag = "interface";
-char* trafficTag = "traffic";
-char* daysTag = "days";
 char* dayTag = "day";
-char* rxTag = "rx";
-char* txTag = "tx";
-static string xmlFile;
+char* config_file;
 
 ParseTree::ParseTree(){
   try{
     XMLPlatformUtils::Initialize();
+    parser = new XercesDOMParser;
+    parser->setValidationScheme(XercesDOMParser::Val_Never);
+    parser->setDoNamespaces(false);
+    parser->setDoSchema(false);
+    parser->setLoadExternalDTD(false);
   } catch(const XMLException& error){
     XERCES_STD_QUALIFIER cerr << "Error during initialization: \n"
         << StrX(error.getMessage()) << XERCES_STD_QUALIFIER endl;
@@ -59,24 +56,10 @@ char** ParseTree::parseFile(string fileToParse) throw(runtime_error){
   else if(iretStat == -1)  
     throw(runtime_error("Something went wrong. Check the provided file"));
   
-  DOMElement* interfaceElem;
-  DOMElement* trafficElem;
-  DOMElement* daysElem;
-  DOMElement* dayElem;
-  DOMElement* rxElem;
-  DOMElement* txElem;
-  
-  parser = new XercesDOMParser;
-  parser->setValidationScheme(XercesDOMParser::Val_Never);
-  parser->setDoNamespaces(false);
-  parser->setDoSchema(false);
-  parser->setLoadExternalDTD(false);
-  
   try{
     parser->parse(fileToParse.c_str());
     DOMDocument* xmlDoc = parser->getDocument();
-    DOMElement* elementRoot = xmlDoc->getDocumentElement();
-    if(!elementRoot){
+    if(!xmlDoc){
       XERCES_STD_QUALIFIER cerr << "Couldn't parse the provided file\nMaybe it's not valid XML?" << XERCES_STD_QUALIFIER endl;
       XMLPlatformUtils::Terminate();
     }
@@ -102,6 +85,8 @@ char** ParseTree::parseFile(string fileToParse) throw(runtime_error){
   return rx_tx;
 }
 
+
+
 DOMElement* ParseTree::findElement(DOMElement* currentElement, const char* lostTag){
   XMLCh* tagSearchFor = XMLString::transcode(lostTag);
   DOMElement* elementFound;
@@ -125,17 +110,121 @@ bool ParseTree::hasChildren(DOMElement* elem){
   return count == 0 ? false : true;
 }
 
+char*
+ParseTree::strrep(char *orig, char *search, char *repl) {
+  int i, count = 0;
+  int repllen = strlen(repl);
+  int searchlen = strlen(search);
+ 
+  for (i = 0; orig[i]; ++i)
+    if (strstr(&orig[i], search) == &orig[i])
+      ++count, i += searchlen - 1;
+ 
+  char *ret = (char *) calloc(i + 1 + count * (repllen - searchlen), sizeof(char));
+  if (!ret) return "";
+ 
+  i = 0;
+  while (*orig)
+    if (strstr(orig, search) == orig)
+      strcpy(&ret[i], repl),
+      i += repllen,
+      orig += searchlen;
+    else
+      ret[i++] = *orig++;
+   
+  ret[i] = '\0';
+
+  return ret;
+}
+
+void
+ParseTree::parse_config_file(char* file){
+  struct stat fileStatus;
+  char* node_name;
+  char* node_text;
+  DOMNode* current_node;
+  
+  int iretStat = stat(file, &fileStatus);
+  if(iretStat == ENOENT)
+    throw(runtime_error("File does not exist"));
+  else if(iretStat == ENOTDIR)
+    throw(runtime_error("Invalid path"));
+  else if(iretStat == ELOOP)
+    throw(runtime_error("Too many symbolic links encountered while traversing path"));
+  else if(iretStat == EACCES)
+    throw(runtime_error("Permission Denied"));
+  else if(iretStat == ENAMETOOLONG)
+    throw(runtime_error("File cannot be read :("));
+  else if(iretStat == -1)  
+    throw(runtime_error("Something went wrong. Check the provided file"));
+
+  try{
+    parser->parse(file);
+    DOMDocument* xmlDoc = parser->getDocument();
+    if(!xmlDoc){
+      XERCES_STD_QUALIFIER cerr << "Couldn't parse the provided file\nMaybe it's not valid XML?" << XERCES_STD_QUALIFIER endl;
+      XMLPlatformUtils::Terminate();
+    }
+    DOMNodeList* configElement = xmlDoc->getElementsByTagName(XMLString::transcode("configurations"));
+    DOMNodeList* child_elements = configElement->item(0)->getChildNodes();
+    for(int el=0; el < child_elements->getLength(); el++){
+      current_node = child_elements->item(el);
+      node_name = XMLString::transcode(current_node->getNodeName());
+      node_text = XMLString::transcode(current_node->getTextContent());
+      if(node_text == "") continue;
+      
+      if(strcmp(node_name, "mem_file") == 0)
+        strcpy(configs.mem_file, node_text);
+      else if(strcmp(node_name, "cpu_file") == 0)
+        configs.cpu_file = node_text;
+      else if(strcmp(node_name, "beanstalk_host") == 0)
+        configs.beanstalk_addr = node_text;
+      else if(strcmp(node_name, "beanstalk_port") == 0)
+        configs.bean_port = atoi(node_text);
+      else if(strcmp(node_name, "tube_name") == 0)
+        configs.tube_name = node_text;
+      else if(strcmp(node_name, "network_stats_file") == 0)
+        configs.net_stats_xml = node_text;
+    }    
+  } catch(const XMLException& e){
+    XERCES_STD_QUALIFIER cerr << "Error: \n"
+        << StrX(e.getMessage()) << XERCES_STD_QUALIFIER endl;
+    XMLPlatformUtils::Terminate();
+  }
+  
+  if(configs.mem_file == NULL)
+    throw(runtime_error("You must specify the location of the memory file"));
+  else if(configs.cpu_file == NULL)
+    throw(runtime_error("You must specify the location of the load average file"));
+  else if(configs.beanstalk_addr == NULL)
+    throw(runtime_error("You must specify the address to the beanstalk server"));
+  else if(configs.bean_port == 0)
+    throw(runtime_error("You must specify the beanstalk port to connect to"));
+  else if(configs.tube_name == NULL)
+    throw(runtime_error("You must specify the beanstalk tube name to use"));
+  else if(configs.net_stats_xml == NULL)
+    throw(runtime_error("You must specify the location of the network stats xml file"));
+}
 
 
 int main(int argc, char* argv[]){
-  
+  FileDrudge fd;
   ParseTree p;
   SendData send_data;
+  
   JSONNode* root;
   JSONNode* name; 
   JSONNode* value;
+  JSONNode* network;
+  JSONNode* mem_data;
+  JSONNode* cpu_data;
+  
   char* jsoned;
   char** rx_tx;
+  char* mem_file_data;
+  char* cpu_file_data;
+  mem_file_data = (char*)malloc(51200);
+  cpu_file_data = (char*)malloc(1024);
   
   if(argc < 2){
     usage();
@@ -147,14 +236,6 @@ int main(int argc, char* argv[]){
   for(parmInd = 1; parmInd < argc; parmInd++){
     if(argv[parmInd][0] != '-')
       break;
-    
-    if(!strncmp(argv[parmInd], "-d=", 3)){
-      device = &argv[parmInd][3];
-    }
-    
-    if(!strncmp(argv[parmInd], "-h=", 3)){
-      beanstalk_addr = &argv[parmInd][3];
-    }
       
     if(!strcmp(argv[parmInd], "-?")){
       XERCES_STD_QUALIFIER cout << "Printing Help" << XERCES_STD_QUALIFIER endl;
@@ -164,30 +245,39 @@ int main(int argc, char* argv[]){
     }
   }
   
-  if(device == NULL){
-    usage();
-    XERCES_STD_QUALIFIER cerr << "\n\nYou must provide a device to look for " 
-      << "(Hint: no spaces)\n" << XERCES_STD_QUALIFIER endl;
-    XMLPlatformUtils::Terminate();
-    return 3;
-  }
-  
   if(parmInd + 1 != argc){
     usage();
     XMLPlatformUtils::Terminate();
     return 1;
   }
-  xmlFile = argv[parmInd];
-  rx_tx = p.parseFile(xmlFile);
-  in_addr* addr_info = send_data.get_ip_addr(strdup(beanstalk_addr));
-  send_data.connect_to_server(addr_info, 11300);
-  send_data.select_tube("pingstatus");
+  
+  config_file = argv[parmInd];
+  p.parse_config_file(config_file);
+  
+  
+  rx_tx = p.parseFile(p.configs.net_stats_xml);
+  in_addr* addr_info = send_data.get_ip_addr(strdup(p.configs.beanstalk_addr));
+  send_data.connect_to_server(addr_info, p.configs.bean_port);
+  send_data.select_tube(p.configs.tube_name);
+  
+  mem_file_data = fd.read_file(p.configs.mem_file);
+  cpu_file_data = fd.read_file(p.configs.cpu_file);
+  
+  //cout << mem_file_data << endl;
   
   root = libJSON::NewNode("", "{}");
-  name = root->AddNewStringChild("rx", rx_tx[0]);
-  value = root->AddNewChild("tx", rx_tx[1]);
+  network = libJSON::NewNode("", "{}");
+  mem_data = libJSON::NewNode("", "[]");
+  cpu_data = libJSON::NewNode("", "[]");
+  
+  name = network->AddNewStringChild("rx", rx_tx[0]);
+  value = network->AddNewChild("tx", rx_tx[1]);
+  
+  root->AddNewChild("network", network->Write());
+  root->AddNewStringChild("mem_data", p.strrep(mem_file_data, "\n", "\\\\n"));
+  root->AddNewStringChild("cpu_data", cpu_file_data);
   jsoned = strdup((root->Write()).c_str());
-  send_data.put_data(jsoned);
+  send_data.put_data(p.strrep(jsoned, "\"", "\\\""));
   
   
   return 0;

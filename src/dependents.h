@@ -1,0 +1,20 @@
+#include <iostream>
+#include <string>
+#include <stdexcept>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <xercesc/sax/HandlerBase.hpp>
+#include <xercesc/util/PlatformUtils.hpp>
+#include <xercesc/parsers/XercesDOMParser.hpp>
+#include <xercesc/dom/DOM.hpp>
+#include <sys/socket.h>
+#include <cstdlib>
+#include <cstring>
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netdb.h>
+#include <fstream>

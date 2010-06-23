@@ -1,0 +1,8 @@
+<configurations>
+	<mem_file>/test_dir/meminfo</mem_file>
+	<cpu_file>/test_dir/loadavg</cpu_file>
+	<beanstalk_host>localhost</beanstalk_host>
+	<beanstalk_port>11300</beanstalk_port>
+	<tube_name>pingstatus</tube_name>
+	<network_stats_file>/tmp/xml_data</network_stats_file>
+</configurations>

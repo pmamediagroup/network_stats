@@ -1,18 +1,6 @@
 #ifndef PUT_DATA_H
 #define PUT_DATA_H
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <iostream>
-#include <stdexcept>
-#include <cstdlib>
-#include <cstring>
-#include <stdio.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <string>
+#include "dependents.h"
 
 class SendData{
 public:
